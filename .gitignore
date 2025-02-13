@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Environment/Config files
+config.js
+.env
+
+# Logs
+*.log
+npm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed 
