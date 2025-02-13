@@ -1,7 +1,6 @@
-// Determine API endpoint based on environment
-const API_ENDPOINT = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:3001/api/chat'  // Local development
-    : '/.netlify/functions/chat';       // Production (Netlify)
+
+const API_KEY = 'AIzaSyCprcSwZCwEGYVF44qYQ_aG2xtL_7KsZ2I'; // Make sure this is set correctly
+const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
 
 // Custom responses
 const CUSTOM_RESPONSES = {
@@ -19,6 +18,12 @@ const CUSTOM_RESPONSES = {
         "I'm the Raju Startup AI Assistant. Feel free to call me RajuAI!",
         "My name is RajuAI, proudly developed by Raju Startup.",
         "I'm known as the Raju Startup AI - your intelligent digital companion."
+    ],
+    'how are you': [
+        "I am Raju, a multimodal AI language model developed by Raju Startup. I don't have personal feelings or experiences, so I don't have a state of being or emotions. I'm here to help you with your questions and provide information to the best of my abilities."
+    ],
+    'how you': [
+        "I am Raju, a multimodal AI language model developed by Raju Startup. I don't have personal feelings or experiences, so I don't have a state of being or emotions. I'm here to help you with your questions and provide information to the best of my abilities."
     ]
 };
 
@@ -148,35 +153,37 @@ async function sendMessage() {
 
         // If no custom response, use API
         if (!aiResponse) {
-            console.log('Sending message to server:', message);
-
-            const response = await fetch(API_ENDPOINT, {
+            const response = await fetch(`${API_URL}?key=${API_KEY}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json'
                 },
                 body: JSON.stringify({
-                    message: message
+                    contents: [{
+                        parts: [{
+                            text: message
+                        }]
+                    }]
                 }),
                 signal: controller.signal
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
             const data = await response.json();
-            aiResponse = data.text;
+            aiResponse = data.candidates[0].content.parts[0].text;
         }
 
         generatingElement.remove();
         await appendMessage('ai', aiResponse);
 
     } catch (error) {
-        console.error('Client Error:', error);
-        generatingElement.remove();
-        appendMessage('ai', 'Sorry, I encountered an error. Please try again.');
+        if (error.name === 'AbortError') {
+            generatingElement.remove();
+            await appendMessage('ai', 'Generation stopped.');
+        } else {
+            console.error('Error:', error);
+            generatingElement.remove();
+            await appendMessage('ai', 'Sorry, I encountered an error. Please try again.');
+        }
     }
 
     inputContainer.classList.remove('disabled');
