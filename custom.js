@@ -1,4 +1,7 @@
-const API_URL = '/api/chat'; // Update to use local endpoint
+// Determine API endpoint based on environment
+const API_ENDPOINT = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:3001/api/chat'  // Local development
+    : '/.netlify/functions/chat';       // Production (Netlify)
 
 // Custom responses
 const CUSTOM_RESPONSES = {
@@ -145,9 +148,9 @@ async function sendMessage() {
 
         // If no custom response, use API
         if (!aiResponse) {
-            console.log('Sending message to server:', message); // Debug log
+            console.log('Sending message to server:', message);
 
-            const response = await fetch('http://localhost:3001/api/chat', {  // Make sure URL is correct
+            const response = await fetch(API_ENDPOINT, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -172,8 +175,8 @@ async function sendMessage() {
 
     } catch (error) {
         console.error('Client Error:', error);
-        // Add user-friendly error message to chat
-        appendMessage('AI', 'Sorry, I encountered an error. Please try again.');
+        generatingElement.remove();
+        appendMessage('ai', 'Sorry, I encountered an error. Please try again.');
     }
 
     inputContainer.classList.remove('disabled');
