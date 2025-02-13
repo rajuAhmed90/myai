@@ -1,44 +1,57 @@
-const fetch = require('node-fetch');
-const { API_KEY } = process.env;
+import fetch from 'node-fetch';
 
 exports.handler = async function(event, context) {
-    // Handle CORS preflight requests
+    // Log incoming request for debugging
+    console.log('Received request:', event.httpMethod);
+    
+    // Handle CORS preflight
     if (event.httpMethod === 'OPTIONS') {
         return {
             statusCode: 200,
             headers: {
                 'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type',
-                'Access-Control-Allow-Methods': 'POST, OPTIONS'
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+                'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
             },
             body: ''
         };
     }
 
-    // Only allow POST
-    if (event.httpMethod !== 'POST') {
+    // Verify API key exists
+    if (!process.env.GEMINI_API_KEY) {
+        console.error('GEMINI_API_KEY not found in environment variables');
         return {
-            statusCode: 405,
+            statusCode: 500,
             headers: {
                 'Access-Control-Allow-Origin': '*',
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ error: 'Method Not Allowed' })
+            body: JSON.stringify({ error: 'API key configuration error' })
         };
     }
 
     try {
-        const { message } = JSON.parse(event.body);
+        // Parse request body
+        const body = JSON.parse(event.body || '{}');
+        const message = body.message;
 
         if (!message) {
-            throw new Error('Message is required');
+            return {
+                statusCode: 400,
+                headers: {
+                    'Access-Control-Allow-Origin': '*',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ error: 'Message is required' })
+            };
         }
 
+        // Make request to Gemini API
         const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-goog-api-key': process.env.GEMINI_API_KEY // Make sure this matches your env variable name
+                'x-goog-api-key': process.env.GEMINI_API_KEY
             },
             body: JSON.stringify({
                 contents: [{
@@ -49,12 +62,14 @@ exports.handler = async function(event, context) {
             })
         });
 
+        const data = await response.json();
+
+        // Check for API errors
         if (!response.ok) {
-            throw new Error(`API responded with status: ${response.status}`);
+            console.error('Gemini API error:', data);
+            throw new Error(data.error?.message || 'API error');
         }
 
-        const data = await response.json();
-        
         return {
             statusCode: 200,
             headers: {
@@ -66,15 +81,15 @@ exports.handler = async function(event, context) {
             })
         };
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Function error:', error);
         return {
             statusCode: 500,
             headers: {
                 'Access-Control-Allow-Origin': '*',
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ 
-                error: error.message || 'Internal server error' 
+            body: JSON.stringify({
+                error: 'Internal server error: ' + error.message
             })
         };
     }
